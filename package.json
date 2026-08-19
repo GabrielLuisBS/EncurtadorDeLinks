@@ -1,0 +1,15 @@
+{
+  "name": "linkly",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "front",
+    "back"
+  ],
+  "scripts": {
+    "dev:front": "npm run dev -w front",
+    "dev:back": "npm run dev -w back",
+    "build:front": "npm run build -w front",
+    "build:back": "npm run build -w back"
+  }
+}
