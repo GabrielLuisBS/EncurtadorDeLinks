@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Link {
+  id         String    @id @default(uuid())
+  slug       String    @unique @db.VarChar(16)
+  urlDestino String
+  criadoEm   DateTime  @default(now())
+  expiraEm   DateTime?
+  ativo      Boolean   @default(true)
+
+  cliques    Clique[]
+  cliquesDia CliqueDia[]
+}
+
+model Clique {
+  id          String   @id @default(uuid())
+  linkId      String
+  link        Link     @relation(fields: [linkId], references: [id])
+  quando      DateTime @default(now())
+  pais        String?  @db.VarChar
+  referer     String?  @db.VarChar
+  dispositivo String?  @db.VarChar
+
+  @@index([linkId])
+  @@index([linkId, quando])
+}
+
+model CliqueDia {
+  id     String   @id @default(uuid())
+  linkId String
+  link   Link     @relation(fields: [linkId], references: [id])
+  dia    DateTime @db.Date
+  total  Int
+
+  @@unique([linkId, dia])
+  @@index([linkId, dia])
+}

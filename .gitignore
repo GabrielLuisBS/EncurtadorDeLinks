@@ -5,6 +5,9 @@ node_modules
 dist
 dist-ssr
 
+# Generated Prisma client
+back/src/generated
+
 # Env files
 .env
 .env.local
