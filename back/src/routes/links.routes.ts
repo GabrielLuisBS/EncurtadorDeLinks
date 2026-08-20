@@ -1,6 +1,11 @@
 import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance } from "fastify";
-import { InvalidUrlError, LinkNotFoundError, linkService } from "../services/link.service.js";
+import {
+  computeStatus,
+  InvalidUrlError,
+  LinkNotFoundError,
+  linkService,
+} from "../services/link.service.js";
 import { qrcodeService } from "../services/qrcode.service.js";
 import { isValidSlugFormat } from "../services/slug.js";
 
@@ -46,6 +51,33 @@ export async function linksRoutes(app: FastifyInstance) {
       } catch (error) {
         if (error instanceof InvalidUrlError) {
           return reply.status(400).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: SlugParams }>(
+    "/links/:slug",
+    async (request, reply) => {
+      const { slug } = request.params;
+      if (!isValidSlugFormat(slug)) {
+        return reply.status(400).send({ error: "Slug inválido." });
+      }
+
+      try {
+        const link = await linkService.getBySlug(slug);
+        return reply.send({
+          slug: link.slug,
+          urlDestino: link.urlDestino,
+          ativo: link.ativo,
+          criadoEm: link.criadoEm,
+          expiraEm: link.expiraEm,
+          status: computeStatus(link.ativo, link.expiraEm),
+        });
+      } catch (error) {
+        if (error instanceof LinkNotFoundError) {
+          return reply.status(404).send({ error: error.message });
         }
         throw error;
       }

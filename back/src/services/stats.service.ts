@@ -1,16 +1,8 @@
-import { LinkNotFoundError, linkService } from "./link.service.js";
+import { LinkNotFoundError, computeStatus, linkService } from "./link.service.js";
 import { statsRepository } from "../repositories/stats.repository.js";
 import type { Pagination, PeriodRange } from "../utils/stats-query.js";
 
 export { LinkNotFoundError };
-
-type LinkStatus = "ativo" | "desativado" | "expirado";
-
-function computeStatus(ativo: boolean, expiraEm: Date | null): LinkStatus {
-  if (!ativo) return "desativado";
-  if (expiraEm && expiraEm.getTime() <= Date.now()) return "expirado";
-  return "ativo";
-}
 
 async function requireLink(slug: string) {
   return linkService.getBySlug(slug);

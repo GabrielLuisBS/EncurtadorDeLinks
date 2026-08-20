@@ -20,6 +20,19 @@ export class LinkNotFoundError extends Error {
   }
 }
 
+export type LinkStatus = "ativo" | "desativado" | "expirado";
+
+/**
+ * Deriva o status visível (ativo/desativado/expirado) a partir dos campos
+ * brutos do Link. Única fonte da verdade — usada tanto no resumo de
+ * estatísticas (stats.service.ts) quanto na leitura de metadados do link.
+ */
+export function computeStatus(ativo: boolean, expiraEm: Date | null): LinkStatus {
+  if (!ativo) return "desativado";
+  if (expiraEm && expiraEm.getTime() <= Date.now()) return "expirado";
+  return "ativo";
+}
+
 function validateUrl(rawUrl: string): void {
   if (rawUrl.length > MAX_URL_LENGTH) {
     throw new InvalidUrlError(`excede o tamanho máximo de ${MAX_URL_LENGTH} caracteres`);
