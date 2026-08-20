@@ -9,6 +9,18 @@ export const statsRepository = {
     });
   },
 
+  /**
+   * Mesma agregação de sumAllTimeClicks, mas sem filtro de linkId — soma
+   * CliqueDia de todos os links. Nunca conta Clique bruto (ver nota
+   * "Dashboard": "Nunca: Dashboard → milhares de registros de Clique →
+   * gráfico"), a mesma regra vale pro resumo global.
+   */
+  sumAllTimeClicksGlobal() {
+    return prisma.cliqueDia.aggregate({
+      _sum: { total: true },
+    });
+  },
+
   sumClicksInPeriod(linkId: string, range: PeriodRange) {
     return prisma.cliqueDia.aggregate({
       where: { linkId, dia: { gte: range.start, lt: range.end } },

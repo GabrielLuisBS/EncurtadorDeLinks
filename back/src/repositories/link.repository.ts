@@ -16,6 +16,10 @@ export const linkRepository = {
     return prisma.link.findUnique({ where: { slug } });
   },
 
+  count(): Promise<number> {
+    return prisma.link.count();
+  },
+
   update(id: string, data: { ativo?: boolean; expiraEm?: Date | null }): Promise<Link> {
     return prisma.link.update({ where: { id }, data });
   },

@@ -33,6 +33,10 @@ export async function statsRoutes(app: FastifyInstance) {
     timeWindow: "1 minute",
   });
 
+  app.get("/stats/resumo", async () => {
+    return statsService.getResumo();
+  });
+
   app.get<{ Params: StatsParams }>("/links/:slug/stats", async (request, reply) => {
     try {
       const range = parsePeriod(request.query as Record<string, unknown>);
