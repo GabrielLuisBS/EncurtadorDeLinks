@@ -3,6 +3,7 @@ import { redis } from "../db/redis.js";
 const DEFAULT_TTL_SECONDS = 300;
 
 export interface CachedLink {
+  linkId: string;
   urlDestino: string;
   ativo: boolean;
   /** ISO 8601, ou null se o link não expira — JSON não tem tipo Date. */

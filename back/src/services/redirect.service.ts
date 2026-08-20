@@ -2,7 +2,7 @@ import { linkRepository } from "../repositories/link.repository.js";
 import { cacheService, type CachedLink } from "./cache.service.js";
 
 export type ResolveLinkResult =
-  | { status: "ok"; urlDestino: string }
+  | { status: "ok"; linkId: string; urlDestino: string }
   | { status: "not_found" }
   | { status: "gone" };
 
@@ -22,7 +22,7 @@ function evaluate(data: CachedLink): ResolveLinkResult {
   if (!data.ativo || isExpired(data.expiraEm)) {
     return { status: "gone" };
   }
-  return { status: "ok", urlDestino: data.urlDestino };
+  return { status: "ok", linkId: data.linkId, urlDestino: data.urlDestino };
 }
 
 export const redirectService = {
@@ -38,6 +38,7 @@ export const redirectService = {
     }
 
     const candidate: CachedLink = {
+      linkId: link.id,
       urlDestino: link.urlDestino,
       ativo: link.ativo,
       expiraEm: link.expiraEm ? link.expiraEm.toISOString() : null,
