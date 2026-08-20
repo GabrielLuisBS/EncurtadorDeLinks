@@ -12,6 +12,10 @@ export const linkRepository = {
     return prisma.link.create({ data });
   },
 
+  findBySlug(slug: string): Promise<Link | null> {
+    return prisma.link.findUnique({ where: { slug } });
+  },
+
   /**
    * Reconhece especificamente a violação de UNIQUE(slug) — não qualquer
    * P2002 (a constraint poderia, no futuro, cobrir outro campo).
