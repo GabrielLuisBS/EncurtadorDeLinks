@@ -1,11 +1,25 @@
 import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance } from "fastify";
-import { InvalidUrlError, linkService } from "../services/link.service.js";
+import { InvalidUrlError, LinkNotFoundError, linkService } from "../services/link.service.js";
+import { qrcodeService } from "../services/qrcode.service.js";
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL ?? "http://localhost:3333";
 
+// Mesmo alfabeto e tamanho máximo do nanoid usado em generateUniqueSlug
+// (fase 2.1) e do VarChar(16) do schema — barra aqui o que nunca poderia
+// ser um slug válido, antes de chegar ao banco.
+const SLUG_PATTERN = /^[A-Za-z0-9_-]{1,16}$/;
+
 interface CreateLinkBody {
   url?: string;
+}
+
+interface SlugParams {
+  slug: string;
+}
+
+interface SetAtivoBody {
+  ativo?: boolean;
 }
 
 export async function linksRoutes(app: FastifyInstance) {
@@ -36,6 +50,58 @@ export async function linksRoutes(app: FastifyInstance) {
       } catch (error) {
         if (error instanceof InvalidUrlError) {
           return reply.status(400).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: SlugParams }>(
+    "/links/:slug/qrcode",
+    // Só leitura (não cria nem muta nada), então recebe um teto mais
+    // generoso que o default de 20/min do plugin — pensado para
+    // criação/mutação, não para servir uma imagem sob demanda.
+    { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const { slug } = request.params;
+      if (!SLUG_PATTERN.test(slug)) {
+        return reply.status(400).send({ error: "Slug inválido." });
+      }
+
+      try {
+        const link = await linkService.getBySlug(slug);
+        const png = await qrcodeService.generatePng(`${PUBLIC_BASE_URL}/${link.slug}`);
+        return reply.header("Content-Type", "image/png").send(png);
+      } catch (error) {
+        if (error instanceof LinkNotFoundError) {
+          return reply.status(404).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.patch<{ Params: SlugParams; Body: SetAtivoBody }>(
+    "/links/:slug",
+    async (request, reply) => {
+      const { slug } = request.params;
+      const { ativo } = request.body ?? {};
+
+      if (!SLUG_PATTERN.test(slug)) {
+        return reply.status(400).send({ error: "Slug inválido." });
+      }
+      if (typeof ativo !== "boolean") {
+        return reply
+          .status(400)
+          .send({ error: 'Campo "ativo" é obrigatório e deve ser booleano.' });
+      }
+
+      try {
+        const link = await linkService.setAtivo(slug, ativo);
+        return reply.send({ slug: link.slug, ativo: link.ativo });
+      } catch (error) {
+        if (error instanceof LinkNotFoundError) {
+          return reply.status(404).send({ error: error.message });
         }
         throw error;
       }

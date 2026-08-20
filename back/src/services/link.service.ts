@@ -1,5 +1,6 @@
 import type { Link } from "../generated/prisma/client.js";
 import { linkRepository } from "../repositories/link.repository.js";
+import { cacheService } from "./cache.service.js";
 import { generateUniqueSlug } from "./slug.js";
 
 const MAX_URL_LENGTH = 2048;
@@ -9,6 +10,13 @@ export class InvalidUrlError extends Error {
   constructor(reason: string) {
     super(`URL inválida: ${reason}`);
     this.name = "InvalidUrlError";
+  }
+}
+
+export class LinkNotFoundError extends Error {
+  constructor() {
+    super("Link não encontrado.");
+    this.name = "LinkNotFoundError";
   }
 }
 
@@ -43,5 +51,26 @@ export const linkService = {
       tryInsert: (slug) => linkRepository.create({ slug, urlDestino }),
       isUniqueConstraintViolation: linkRepository.isUniqueSlugViolation,
     });
+  },
+
+  async getBySlug(slug: string): Promise<Link> {
+    const link = await linkRepository.findBySlug(slug);
+    if (!link) {
+      throw new LinkNotFoundError();
+    }
+    return link;
+  },
+
+  /**
+   * Ativa/desativa o link e invalida o cache Redis (`DEL link:{slug}`) como
+   * parte da mesma operação — sem isso, um link recém-desativado continuaria
+   * respondendo 302 até o TTL do cache expirar (ver "Funcionalidades do
+   * Link" no Obsidian).
+   */
+  async setAtivo(slug: string, ativo: boolean): Promise<Link> {
+    const link = await linkService.getBySlug(slug);
+    const updated = await linkRepository.setAtivo(link.id, ativo);
+    await cacheService.del(slug);
+    return updated;
   },
 };

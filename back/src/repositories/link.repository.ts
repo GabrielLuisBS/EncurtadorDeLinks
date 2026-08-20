@@ -16,6 +16,10 @@ export const linkRepository = {
     return prisma.link.findUnique({ where: { slug } });
   },
 
+  setAtivo(id: string, ativo: boolean): Promise<Link> {
+    return prisma.link.update({ where: { id }, data: { ativo } });
+  },
+
   /**
    * Reconhece especificamente a violação de UNIQUE(slug) — não qualquer
    * P2002 (a constraint poderia, no futuro, cobrir outro campo).

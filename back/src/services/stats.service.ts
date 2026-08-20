@@ -1,13 +1,8 @@
-import { linkRepository } from "../repositories/link.repository.js";
+import { LinkNotFoundError, linkService } from "./link.service.js";
 import { statsRepository } from "../repositories/stats.repository.js";
 import type { Pagination, PeriodRange } from "../utils/stats-query.js";
 
-export class LinkNotFoundError extends Error {
-  constructor() {
-    super("Link não encontrado.");
-    this.name = "LinkNotFoundError";
-  }
-}
+export { LinkNotFoundError };
 
 type LinkStatus = "ativo" | "desativado" | "expirado";
 
@@ -18,11 +13,7 @@ function computeStatus(ativo: boolean, expiraEm: Date | null): LinkStatus {
 }
 
 async function requireLink(slug: string) {
-  const link = await linkRepository.findBySlug(slug);
-  if (!link) {
-    throw new LinkNotFoundError();
-  }
-  return link;
+  return linkService.getBySlug(slug);
 }
 
 /**
