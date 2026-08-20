@@ -242,3 +242,51 @@
   color: var(--text-2);
   flex-shrink: 0;
 }
+
+.stats-summary {
+  margin-top: 104px;
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 40px;
+  display: grid;
+  /* O mockup usa 3 colunas (Links criados / Cliques / Usuários), mas o
+     card de Usuários não tem dado real até a fase 11 — ver StatsSummary.tsx.
+     2 colunas evita um terceiro card vazio; volta pra 3 quando ele existir. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.icon-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-number {
+  font-family: 'Sora', sans-serif;
+  font-weight: 800;
+  font-size: 32px;
+}
+
+.stat-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-2);
+}

@@ -43,6 +43,24 @@ export function ExternalLinkIcon({ size = 15, strokeWidth = 1.8 }: IconProps) {
   );
 }
 
+export function ClickIcon({ size = 20, strokeWidth = 1.8, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M6 4l3 15 2.5-5.5L17 11 6 4z" />
+    </svg>
+  );
+}
+
 export function CopyIcon({ size = 15, strokeWidth = 1.8 }: IconProps) {
   return (
     <svg

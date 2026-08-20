@@ -26,3 +26,16 @@ export async function createLink(url: string): Promise<CreateLinkResult> {
 
   return data as CreateLinkResult;
 }
+
+export interface Resumo {
+  totalLinks: number;
+  totalCliques: number;
+}
+
+export async function getResumo(): Promise<Resumo> {
+  const response = await fetch(`${API_URL}/stats/resumo`);
+  if (!response.ok) {
+    throw new ApiError('Não foi possível carregar o resumo.');
+  }
+  return (await response.json()) as Resumo;
+}
