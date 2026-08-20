@@ -36,7 +36,7 @@ function yesterdayUTC(now: Date): Date {
  */
 export async function aggregateDay(
   targetDay: Date = yesterdayUTC(new Date()),
-): Promise<{ dia: Date; linksProcessed: number }> {
+): Promise<{ dia: Date; linksProcessed: number; origensProcessadas: number }> {
   const { start, end, day } = dayRangeUTC(targetDay);
 
   const groups = await prisma.clique.groupBy({
@@ -53,7 +53,29 @@ export async function aggregateDay(
     });
   }
 
-  return { dia: day, linksProcessed: groups.length };
+  // Mesma janela do dia, agora agrupando também por dispositivo/país —
+  // alimenta as tabelas de origem do dashboard (ver nota "Dashboard").
+  // dispositivo/pais nulos viram sentinela ("outro"/"") porque o UNIQUE
+  // de CliqueDiaPorOrigem não tolera NULL nesses campos (ver schema.prisma).
+  const originGroups = await prisma.clique.groupBy({
+    by: ["linkId", "dispositivo", "pais"],
+    where: { quando: { gte: start, lt: end } },
+    _count: { _all: true },
+  });
+
+  for (const group of originGroups) {
+    const dispositivo = group.dispositivo ?? "outro";
+    const pais = group.pais ?? "";
+    await prisma.cliqueDiaPorOrigem.upsert({
+      where: {
+        linkId_dia_dispositivo_pais: { linkId: group.linkId, dia: day, dispositivo, pais },
+      },
+      update: { total: group._count._all },
+      create: { linkId: group.linkId, dia: day, dispositivo, pais, total: group._count._all },
+    });
+  }
+
+  return { dia: day, linksProcessed: groups.length, origensProcessadas: originGroups.length };
 }
 
 // Permite rodar como script standalone (npm run job:aggregate) sem
@@ -65,7 +87,7 @@ if (isMainModule) {
   aggregateDay()
     .then(async (result) => {
       console.log(
-        `[aggregate-daily] dia ${result.dia.toISOString().slice(0, 10)}: ${result.linksProcessed} link(s) processado(s).`,
+        `[aggregate-daily] dia ${result.dia.toISOString().slice(0, 10)}: ${result.linksProcessed} link(s), ${result.origensProcessadas} grupo(s) de origem.`,
       );
       await prisma.$disconnect();
     })

@@ -15,8 +15,9 @@ model Link {
   expiraEm   DateTime?
   ativo      Boolean   @default(true)
 
-  cliques    Clique[]
-  cliquesDia CliqueDia[]
+  cliques          Clique[]
+  cliquesDia       CliqueDia[]
+  cliquesDiaOrigem CliqueDiaPorOrigem[]
 }
 
 model Clique {
@@ -40,5 +41,26 @@ model CliqueDia {
   total  Int
 
   @@unique([linkId, dia])
+  @@index([linkId, dia])
+}
+
+/// Agregado por dimensão (dispositivo/país), alimentado pelo mesmo job de
+/// agregação diária que popula CliqueDia — ver especulação na nota
+/// "Dashboard": dimensões extras não cabiam em CliqueDia (só linkId+dia)
+/// sem misturar o propósito do gráfico de linha com o das tabelas de
+/// origem. `dispositivo` e `pais` são NOT NULL (sentinela "" para
+/// "desconhecido") de propósito: um UNIQUE com coluna NULL não bloqueia
+/// duplicatas no Postgres (NULL nunca é igual a NULL), o que quebraria a
+/// idempotência do upsert para o grupo "sem essa informação".
+model CliqueDiaPorOrigem {
+  id          String   @id @default(uuid())
+  linkId      String
+  link        Link     @relation(fields: [linkId], references: [id])
+  dia         DateTime @db.Date
+  dispositivo String   @db.VarChar
+  pais        String   @default("") @db.VarChar
+  total       Int
+
+  @@unique([linkId, dia, dispositivo, pais])
   @@index([linkId, dia])
 }
