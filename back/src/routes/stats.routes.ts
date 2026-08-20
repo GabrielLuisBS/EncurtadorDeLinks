@@ -1,3 +1,4 @@
+import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { LinkNotFoundError, statsService } from "../services/stats.service.js";
 import {
@@ -23,6 +24,15 @@ function handleError(error: unknown, reply: FastifyReply) {
 }
 
 export async function statsRoutes(app: FastifyInstance) {
+  // Escopado a este plugin, igual ao de linksRoutes. Leitura, mas agregada
+  // (groupBy + paginação) — mais caro por request que o QR code, por isso
+  // um teto mais conservador que os 60/min de leitura simples. Mitiga
+  // "scraping/consulta excessiva do painel" (ver nota "Segurança").
+  await app.register(rateLimit, {
+    max: 60,
+    timeWindow: "1 minute",
+  });
+
   app.get<{ Params: StatsParams }>("/links/:slug/stats", async (request, reply) => {
     try {
       const range = parsePeriod(request.query as Record<string, unknown>);

@@ -2,13 +2,9 @@ import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance } from "fastify";
 import { InvalidUrlError, LinkNotFoundError, linkService } from "../services/link.service.js";
 import { qrcodeService } from "../services/qrcode.service.js";
+import { isValidSlugFormat } from "../services/slug.js";
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL ?? "http://localhost:3333";
-
-// Mesmo alfabeto e tamanho máximo do nanoid usado em generateUniqueSlug
-// (fase 2.1) e do VarChar(16) do schema — barra aqui o que nunca poderia
-// ser um slug válido, antes de chegar ao banco.
-const SLUG_PATTERN = /^[A-Za-z0-9_-]{1,16}$/;
 
 interface CreateLinkBody {
   url?: string;
@@ -64,7 +60,7 @@ export async function linksRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } },
     async (request, reply) => {
       const { slug } = request.params;
-      if (!SLUG_PATTERN.test(slug)) {
+      if (!isValidSlugFormat(slug)) {
         return reply.status(400).send({ error: "Slug inválido." });
       }
 
@@ -87,7 +83,7 @@ export async function linksRoutes(app: FastifyInstance) {
       const { slug } = request.params;
       const { ativo } = request.body ?? {};
 
-      if (!SLUG_PATTERN.test(slug)) {
+      if (!isValidSlugFormat(slug)) {
         return reply.status(400).send({ error: "Slug inválido." });
       }
       if (typeof ativo !== "boolean") {

@@ -1,6 +1,17 @@
 export type Dispositivo = "mobile" | "desktop" | "tablet" | "outro";
 
 /**
+ * Corta um valor vindo de header HTTP (cliente controla o conteúdo) num
+ * teto de tamanho antes de ele virar uma coluna sem limite no banco
+ * (`pais`/`referer` são `VarChar` sem tamanho no schema — ver nota
+ * "Segurança": "Limite de tamanho de entrada").
+ */
+export function truncate(value: string | null, maxLength: number): string | null {
+  if (!value) return value;
+  return value.length > maxLength ? value.slice(0, maxLength) : value;
+}
+
+/**
  * Normaliza o User-Agent para um enum pequeno já na escrita do clique,
  * em vez de guardar o UA cru e reinterpretar depois — ver nota "Modelo
  * de Dados" no Obsidian. Classificação simples por regex; não é um

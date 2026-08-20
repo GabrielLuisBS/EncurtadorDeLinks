@@ -3,6 +3,17 @@ import { nanoid } from "nanoid";
 const SLUG_LENGTH = 8;
 const MAX_ATTEMPTS = 5;
 
+// Mesmo alfabeto do nanoid e o VarChar(16) do schema — qualquer coisa fora
+// disso nunca poderia ser um slug gerado por este serviço, então é
+// rejeitada antes de tocar Redis/Postgres. Única fonte da verdade: usada
+// tanto no redirecionamento público (GET /:slug) quanto nas rotas
+// administrativas (qrcode, ativar/desativar) — ver nota "Segurança".
+const SLUG_FORMAT = /^[A-Za-z0-9_-]{1,16}$/;
+
+export function isValidSlugFormat(slug: string): boolean {
+  return SLUG_FORMAT.test(slug);
+}
+
 interface GenerateUniqueSlugOptions<T> {
   /** Tenta persistir um registro usando o slug candidato. Deve rejeitar com o
    * erro de violação de UNIQUE do banco quando o slug já existir. */

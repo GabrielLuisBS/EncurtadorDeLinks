@@ -1,15 +1,35 @@
 import type { FastifyInstance } from "fastify";
-import { clickQueueService } from "../services/click-queue.service.js";
 import { redirectService } from "../services/redirect.service.js";
-import { classifyDevice, getCountryFromHeaders } from "../utils/click-context.js";
+import { isValidSlugFormat } from "../services/slug.js";
+import { clickQueueService } from "../services/click-queue.service.js";
+import {
+  classifyDevice,
+  getCountryFromHeaders,
+  truncate,
+} from "../utils/click-context.js";
 
 interface RedirectParams {
   slug: string;
 }
 
+// Mesmo teto de "Cache e Redis" (as chaves ficam presas ao mesmo TTL) e de
+// link.service.ts (MAX_URL_LENGTH) — um referer é, na prática, uma URL.
+const MAX_REFERER_LENGTH = 2048;
+// País vindo de header de borda (Cloudflare/Vercel) é normalmente um
+// código de 2-3 letras, mas o header pode ser forjado por qualquer
+// cliente — mesmo teto usado para validar o filtro "pais" no dashboard
+// (ver stats-query.ts), por consistência entre o que entra e o que se
+// pode consultar depois.
+const MAX_PAIS_LENGTH = 100;
+
 export async function redirectRoutes(app: FastifyInstance) {
   app.get<{ Params: RedirectParams }>("/:slug", async (request, reply) => {
     const { slug } = request.params;
+
+    if (!isValidSlugFormat(slug)) {
+      return reply.status(404).send({ error: "Link não encontrado." });
+    }
+
     const result = await redirectService.resolveLink(slug);
 
     if (result.status === "not_found") {
@@ -26,8 +46,8 @@ export async function redirectRoutes(app: FastifyInstance) {
       .publish({
         linkId: result.linkId,
         quando: new Date().toISOString(),
-        pais: getCountryFromHeaders(request.headers),
-        referer: request.headers.referer ?? null,
+        pais: truncate(getCountryFromHeaders(request.headers), MAX_PAIS_LENGTH),
+        referer: truncate(request.headers.referer ?? null, MAX_REFERER_LENGTH),
         dispositivo: classifyDevice(request.headers["user-agent"]),
       })
       .catch((err) => {
