@@ -15,9 +15,10 @@ model Link {
   expiraEm   DateTime?
   ativo      Boolean   @default(true)
 
-  cliques          Clique[]
-  cliquesDia       CliqueDia[]
-  cliquesDiaOrigem CliqueDiaPorOrigem[]
+  cliques           Clique[]
+  cliquesDia        CliqueDia[]
+  cliquesDiaOrigem  CliqueDiaPorOrigem[]
+  cliquesDiaReferer CliqueDiaPorReferer[]
 }
 
 model Clique {
@@ -62,5 +63,23 @@ model CliqueDiaPorOrigem {
   total       Int
 
   @@unique([linkId, dia, dispositivo, pais])
+  @@index([linkId, dia])
+}
+
+/// Agregado por domínio de origem do referer — não pela URL completa
+/// (cardinalidade alta demais: cada link compartilhado com parâmetro de
+/// tracking diferente viraria uma linha nova). `referer` guarda o
+/// hostname normalizado (ex.: "twitter.com"); "" é o sentinela para
+/// "sem referer" (acesso direto), pelo mesmo motivo de NULL vs UNIQUE
+/// explicado em CliqueDiaPorOrigem.
+model CliqueDiaPorReferer {
+  id      String   @id @default(uuid())
+  linkId  String
+  link    Link     @relation(fields: [linkId], references: [id])
+  dia     DateTime @db.Date
+  referer String   @default("") @db.VarChar
+  total   Int
+
+  @@unique([linkId, dia, referer])
   @@index([linkId, dia])
 }

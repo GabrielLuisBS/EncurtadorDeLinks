@@ -48,3 +48,21 @@ export function getCountryFromHeaders(
   }
   return null;
 }
+
+/**
+ * Reduz um referer (URL completa) ao hostname, pra usar como dimensão de
+ * agregação sem explodir em cardinalidade — cada compartilhamento com um
+ * parâmetro de tracking diferente teria uma URL única, mas o mesmo
+ * hostname. Usado na agregação diária ([[Agregação Diária]]), não na
+ * escrita do clique — `Clique.referer` continua guardando a URL crua.
+ * `""` é o sentinela pra "sem referer" (acesso direto) ou referer
+ * malformado.
+ */
+export function normalizeRefererHost(referer: string | null | undefined): string {
+  if (!referer) return "";
+  try {
+    return new URL(referer).hostname;
+  } catch {
+    return "";
+  }
+}
