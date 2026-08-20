@@ -20,6 +20,13 @@ export class LinkNotFoundError extends Error {
   }
 }
 
+export class InvalidExpirationError extends Error {
+  constructor(reason: string) {
+    super(`Data de expiração inválida: ${reason}`);
+    this.name = "InvalidExpirationError";
+  }
+}
+
 export type LinkStatus = "ativo" | "desativado" | "expirado";
 
 /**
@@ -52,6 +59,22 @@ function validateUrl(rawUrl: string): void {
   }
 }
 
+/**
+ * `null` explícito remove a expiração; qualquer outra coisa precisa ser uma
+ * data ISO 8601 válida e no futuro — uma expiração no passado (ou agora) não
+ * faz sentido como valor de entrada, é só um jeito indireto de desativar.
+ */
+function parseExpiraEm(raw: string): Date {
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) {
+    throw new InvalidExpirationError("formato não reconhecido — use uma data ISO 8601");
+  }
+  if (date.getTime() <= Date.now()) {
+    throw new InvalidExpirationError("deve ser uma data no futuro");
+  }
+  return date;
+}
+
 export const linkService = {
   /**
    * Valida a URL e cria o Link com um slug único. Não sabe o que é HTTP —
@@ -75,14 +98,26 @@ export const linkService = {
   },
 
   /**
-   * Ativa/desativa o link e invalida o cache Redis (`DEL link:{slug}`) como
-   * parte da mesma operação — sem isso, um link recém-desativado continuaria
-   * respondendo 302 até o TTL do cache expirar (ver "Funcionalidades do
-   * Link" no Obsidian).
+   * Atualiza ativo e/ou expiraEm (cada um só se enviado) e invalida o cache
+   * Redis (`DEL link:{slug}`) como parte da mesma operação. Vale para os
+   * dois campos: o valor cacheado em `link:{slug}` inclui `expiraEm` junto
+   * com `ativo` (ver "Cache e Redis"), então mudar qualquer um dos dois sem
+   * invalidar deixa o link respondendo pelo valor antigo até o TTL expirar.
    */
-  async setAtivo(slug: string, ativo: boolean): Promise<Link> {
+  async update(
+    slug: string,
+    input: { ativo?: boolean; expiraEm?: string | null },
+  ): Promise<Link> {
+    const data: { ativo?: boolean; expiraEm?: Date | null } = {};
+    if (input.ativo !== undefined) {
+      data.ativo = input.ativo;
+    }
+    if (input.expiraEm !== undefined) {
+      data.expiraEm = input.expiraEm === null ? null : parseExpiraEm(input.expiraEm);
+    }
+
     const link = await linkService.getBySlug(slug);
-    const updated = await linkRepository.setAtivo(link.id, ativo);
+    const updated = await linkRepository.update(link.id, data);
     await cacheService.del(slug);
     return updated;
   },

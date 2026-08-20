@@ -16,8 +16,8 @@ export const linkRepository = {
     return prisma.link.findUnique({ where: { slug } });
   },
 
-  setAtivo(id: string, ativo: boolean): Promise<Link> {
-    return prisma.link.update({ where: { id }, data: { ativo } });
+  update(id: string, data: { ativo?: boolean; expiraEm?: Date | null }): Promise<Link> {
+    return prisma.link.update({ where: { id }, data });
   },
 
   /**

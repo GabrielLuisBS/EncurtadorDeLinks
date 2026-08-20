@@ -2,6 +2,7 @@ import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance } from "fastify";
 import {
   computeStatus,
+  InvalidExpirationError,
   InvalidUrlError,
   LinkNotFoundError,
   linkService,
@@ -19,8 +20,9 @@ interface SlugParams {
   slug: string;
 }
 
-interface SetAtivoBody {
+interface PatchLinkBody {
   ativo?: boolean;
+  expiraEm?: string | null;
 }
 
 export async function linksRoutes(app: FastifyInstance) {
@@ -109,27 +111,38 @@ export async function linksRoutes(app: FastifyInstance) {
     },
   );
 
-  app.patch<{ Params: SlugParams; Body: SetAtivoBody }>(
+  app.patch<{ Params: SlugParams; Body: PatchLinkBody }>(
     "/links/:slug",
     async (request, reply) => {
       const { slug } = request.params;
-      const { ativo } = request.body ?? {};
+      const { ativo, expiraEm } = request.body ?? {};
 
       if (!isValidSlugFormat(slug)) {
         return reply.status(400).send({ error: "Slug inválido." });
       }
-      if (typeof ativo !== "boolean") {
+      if (ativo !== undefined && typeof ativo !== "boolean") {
+        return reply.status(400).send({ error: 'Campo "ativo" deve ser booleano.' });
+      }
+      if (expiraEm !== undefined && expiraEm !== null && typeof expiraEm !== "string") {
         return reply
           .status(400)
-          .send({ error: 'Campo "ativo" é obrigatório e deve ser booleano.' });
+          .send({ error: 'Campo "expiraEm" deve ser uma data ISO 8601 ou null.' });
+      }
+      if (ativo === undefined && expiraEm === undefined) {
+        return reply
+          .status(400)
+          .send({ error: 'Informe ao menos um campo: "ativo" ou "expiraEm".' });
       }
 
       try {
-        const link = await linkService.setAtivo(slug, ativo);
-        return reply.send({ slug: link.slug, ativo: link.ativo });
+        const link = await linkService.update(slug, { ativo, expiraEm });
+        return reply.send({ slug: link.slug, ativo: link.ativo, expiraEm: link.expiraEm });
       } catch (error) {
         if (error instanceof LinkNotFoundError) {
           return reply.status(404).send({ error: error.message });
+        }
+        if (error instanceof InvalidExpirationError) {
+          return reply.status(400).send({ error: error.message });
         }
         throw error;
       }
