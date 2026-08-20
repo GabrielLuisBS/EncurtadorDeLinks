@@ -1,4 +1,5 @@
 import "dotenv/config";
+import cors from "@fastify/cors";
 import Fastify, { type FastifyError } from "fastify";
 import { linksRoutes } from "./routes/links.routes.js";
 import { redirectRoutes } from "./routes/redirect.routes.js";
@@ -6,6 +7,15 @@ import { statsRoutes } from "./routes/stats.routes.js";
 
 const app = Fastify({ logger: true });
 const port = Number(process.env.PORT ?? 3333);
+const frontUrl = process.env.FRONT_URL ?? "http://localhost:5173";
+
+// Sem isto, o navegador bloqueia toda chamada fetch do front (origem
+// diferente: 5173 vs 3333) antes mesmo dela chegar aqui — não afeta curl
+// nem o redirecionamento (GET /:slug é navegação de página inteira, CORS
+// não se aplica a isso, só a fetch/XHR entre origens).
+await app.register(cors, {
+  origin: frontUrl,
+});
 
 // Sem isto, um erro não tratado (ex.: Prisma, Redis) cai no handler padrão
 // do Fastify, que devolve error.message ao cliente — podendo vazar detalhe
