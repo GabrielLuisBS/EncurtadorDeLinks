@@ -18,6 +18,11 @@
 # do GitHub Actions (os dois consumindo o mesmo grupo ao mesmo tempo não
 # quebra nada, mas é redundante).
 #
+# Pelo mesmo motivo, o job de agregação diária (fase 5.1 — a única fonte
+# das tabelas que o dashboard lê) também não está aqui: roda uma vez por
+# dia via .github/workflows/aggregate-daily.yml, não como um Render Cron
+# Job (também sem plano free).
+#
 # O comando roda a partir da raiz do repo (não de "back/"), de propósito:
 # é um monorepo com npm workspaces, e "npm ci" na raiz é o que resolve o
 # lockfile único (package-lock.json) e o node_modules hoisted
