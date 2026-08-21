@@ -27,6 +27,16 @@ interface VerificarEmailBody {
   token?: string;
 }
 
+// Front (Vercel) e back (Render) são sites diferentes de verdade em
+// produção — não é só uma porta diferente como em dev (localhost:5173 e
+// localhost:3333 contam como o MESMO site pra fins de cookie). Cookie
+// entre sites diferentes só é enviado em fetch/XHR com SameSite=None, e
+// SameSite=None exige Secure — daí os dois amarrados na mesma condição.
+// Em dev (sem HTTPS), SameSite=None seria rejeitado pelo navegador
+// (Chrome exige Secure junto), então cai pra Lax, que funciona porque
+// dev é same-site.
+const isProduction = process.env.NODE_ENV === "production";
+
 async function startSession(reply: FastifyReply, usuario: Usuario): Promise<void> {
   const token = await sessionService.create({
     usuarioId: usuario.id,
@@ -36,10 +46,8 @@ async function startSession(reply: FastifyReply, usuario: Usuario): Promise<void
   reply.setCookie(SESSION_COOKIE_NAME, token, {
     path: "/",
     httpOnly: true,
-    sameSite: "lax",
-    // Secure exige HTTPS — em dev local (http://localhost) o cookie
-    // simplesmente não seria enviado de volta se isto fosse true sempre.
-    secure: process.env.NODE_ENV === "production",
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
     signed: true,
     maxAge: SESSION_TTL_SECONDS,
   });
@@ -149,7 +157,14 @@ export async function authRoutes(app: FastifyInstance) {
           await sessionService.destroy(unsigned.value);
         }
       }
-      reply.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
+      // Mesmos atributos de startSession — um clearCookie com SameSite
+      // diferente do cookie original não é garantido apagar em todo
+      // navegador.
+      reply.clearCookie(SESSION_COOKIE_NAME, {
+        path: "/",
+        sameSite: isProduction ? "none" : "lax",
+        secure: isProduction,
+      });
       return reply.status(204).send();
     },
   );
