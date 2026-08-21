@@ -6,7 +6,9 @@ import {
   InvalidCredentialsError,
   InvalidRegistrationError,
 } from "../services/auth.service.js";
+import { attachUsuario, exigirUsuario } from "../services/auth-context.service.js";
 import { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS, sessionService } from "../services/session.service.js";
+import type { Usuario } from "../generated/prisma/client.js";
 
 interface RegistrarBody {
   nome?: string;
@@ -19,8 +21,12 @@ interface LoginBody {
   senha?: string;
 }
 
-async function startSession(reply: FastifyReply, usuarioId: string): Promise<void> {
-  const token = await sessionService.create(usuarioId);
+async function startSession(reply: FastifyReply, usuario: Usuario): Promise<void> {
+  const token = await sessionService.create({
+    usuarioId: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email,
+  });
   reply.setCookie(SESSION_COOKIE_NAME, token, {
     path: "/",
     httpOnly: true,
@@ -34,6 +40,11 @@ async function startSession(reply: FastifyReply, usuarioId: string): Promise<voi
 }
 
 export async function authRoutes(app: FastifyInstance) {
+  // Opcional em todo o plugin — /auth/me e /auth/logout precisam saber
+  // quem está pedindo; registrar/login não precisam, mas rodar sempre é
+  // mais simples que decidir rota a rota, e o custo é um GET no Redis.
+  app.addHook("onRequest", attachUsuario);
+
   // Escopado a este plugin — teto bem mais apertado que o rate limit
   // geral (20/min em links.routes.ts). Login e registro são alvo de
   // força bruta e enumeração de e-mail; tráfego legítimo por IP nessas
@@ -48,7 +59,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     try {
       const usuario = await authService.register(nome, email, senha);
-      await startSession(reply, usuario.id);
+      await startSession(reply, usuario);
       return reply.status(201).send({ id: usuario.id, nome: usuario.nome, email: usuario.email });
     } catch (error) {
       if (error instanceof InvalidRegistrationError) {
@@ -66,7 +77,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     try {
       const usuario = await authService.authenticate(email, senha);
-      await startSession(reply, usuario.id);
+      await startSession(reply, usuario);
       return reply.send({ id: usuario.id, nome: usuario.nome, email: usuario.email });
     } catch (error) {
       if (error instanceof InvalidCredentialsError) {
@@ -78,4 +89,34 @@ export async function authRoutes(app: FastifyInstance) {
       throw error;
     }
   });
+
+  // Passo 11.4 — o front (navbar, "Meus links") precisa descobrir se já
+  // existe sessão ao carregar a página, sem depender de guardar
+  // id/nome/email em localStorage (a sessão inteira vive só no cookie
+  // httpOnly). Teto de rate limit próprio, bem mais generoso que
+  // login/registro: isto roda a cada carregamento de página, não é alvo
+  // de força bruta.
+  app.get(
+    "/auth/me",
+    { preHandler: exigirUsuario, config: { rateLimit: { max: 60, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      return reply.send(request.usuario);
+    },
+  );
+
+  app.post(
+    "/auth/logout",
+    { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const raw = request.cookies[SESSION_COOKIE_NAME];
+      if (raw) {
+        const unsigned = request.unsignCookie(raw);
+        if (unsigned.valid && unsigned.value) {
+          await sessionService.destroy(unsigned.value);
+        }
+      }
+      reply.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
+      return reply.status(204).send();
+    },
+  );
 }

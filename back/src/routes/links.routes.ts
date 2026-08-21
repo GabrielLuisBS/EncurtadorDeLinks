@@ -136,6 +136,13 @@ export async function linksRoutes(app: FastifyInstance) {
           criadoEm: link.criadoEm,
           expiraEm: link.expiraEm,
           status: computeStatus(link.ativo, link.expiraEm),
+          // Passo 11.4 — o front usa isto pra decidir se mostra as
+          // configurações (switch/expiração) como editáveis ou só
+          // leitura. `request.usuarioId` vem do modo opcional (onRequest
+          // do plugin); `null === undefined` é sempre false, então link
+          // sem dono e visitante anônimo nunca dão `dono: true` por
+          // engano.
+          dono: link.usuarioId === request.usuarioId,
         });
       } catch (error) {
         if (error instanceof LinkNotFoundError) {

@@ -216,6 +216,17 @@ export default function LinkDetalhePage() {
                 <div className="panel-title">Configurações do link</div>
               </div>
 
+              {/* Passo 11.3: PATCH agora exige ser dono do link (link sem
+                  dono é imutável pra sempre, ver link.service.ts no back).
+                  `link.dono` (novo no passo 11.4) diz se a sessão atual
+                  pode editar — sem isso o switch pareceria funcionar e
+                  falharia com 403 no clique, silenciosamente. */}
+              {!link.dono && (
+                <div className="setting-readonly-notice">
+                  Você não é dono deste link — as configurações abaixo são somente leitura.
+                </div>
+              )}
+
               <div className="setting">
                 <div className="setting-text">
                   <div className="setting-name">Link ativo</div>
@@ -230,7 +241,7 @@ export default function LinkDetalhePage() {
                     className={link.ativo ? 'switch on' : 'switch'}
                     role="switch"
                     aria-checked={link.ativo}
-                    disabled={savingAtivo}
+                    disabled={savingAtivo || !link.dono}
                     onClick={handleToggleAtivo}
                   >
                     <span className="knob" />
@@ -284,9 +295,11 @@ export default function LinkDetalhePage() {
                     <div className="setting-value">
                       {link.expiraEm ? formatDayMonthYear(link.expiraEm) : 'Sem expiração'}
                     </div>
-                    <button type="button" className="btn-mini" onClick={openExpiracaoEditor}>
-                      Alterar
-                    </button>
+                    {link.dono && (
+                      <button type="button" className="btn-mini" onClick={openExpiracaoEditor}>
+                        Alterar
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

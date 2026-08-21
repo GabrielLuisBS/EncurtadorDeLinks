@@ -3,7 +3,13 @@ import { ApiError, createLink, type CreateLinkResult } from '../lib/api';
 import { stripProtocol } from '../lib/format';
 import { CopyIcon, ExternalLinkIcon, LinkIcon } from './icons';
 
-export default function Hero() {
+interface HeroProps {
+  /** Chamado depois de um POST /links bem-sucedido — a Home usa isso pra
+   * atualizar "Últimos links" (passo 11.4) sem esperar um F5. */
+  onCreated?: () => void;
+}
+
+export default function Hero({ onCreated }: HeroProps) {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +32,7 @@ export default function Hero() {
 
     try {
       setResult(await createLink(url.trim()));
+      onCreated?.();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Não foi possível encurtar o link. Tente novamente.',
