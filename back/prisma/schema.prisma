@@ -7,6 +7,12 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Fase 11 (passo 11.1): usuarioId nullable de propósito — link criado
+/// sem conta continua sendo um caso de uso de primeira classe (o produto
+/// encurta link sem cadastro desde o dia um, ver "Segurança"), não um
+/// estado inválido a ser migrado depois. Links antigos (de antes desta
+/// fase) e os criados anonimamente continuam existindo com usuarioId
+/// null indefinidamente.
 model Link {
   id         String    @id @default(uuid())
   slug       String    @unique @db.VarChar(16)
@@ -14,11 +20,27 @@ model Link {
   criadoEm   DateTime  @default(now())
   expiraEm   DateTime?
   ativo      Boolean   @default(true)
+  usuarioId  String?
+  usuario    Usuario?  @relation(fields: [usuarioId], references: [id])
 
   cliques           Clique[]
   cliquesDia        CliqueDia[]
   cliquesDiaOrigem  CliqueDiaPorOrigem[]
   cliquesDiaReferer CliqueDiaPorReferer[]
+
+  // Sustenta a listagem "meus links" (GET /links, passo 11.3): filtra por
+  // usuarioId e ordena por criadoEm desc — a mesma ordem do índice, sem
+  // sort adicional.
+  @@index([usuarioId, criadoEm])
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  senhaHash String
+  criadoEm  DateTime @default(now())
+
+  links Link[]
 }
 
 model Clique {
