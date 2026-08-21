@@ -29,6 +29,15 @@ jobs:
     # está preso (ex.: Postgres/Redis fora do ar), e travar o job runner
     # indefinidamente só atrasaria a próxima tentativa.
     timeout-minutes: 4
+    # Bug real encontrado em 2026-08-21: estava só no último passo
+    # (worker:once). "prisma generate" TAMBÉM precisa de DATABASE_URL —
+    # o config resolve o env eagerly ao carregar (ver "Stack e
+    # Ferramentas") — e sem isso falhava ali, antes até de chegar no
+    # worker. Todo run desde o primeiro falhou por causa disso; env no
+    # nível do job (não do step) garante que todo passo recebe as duas.
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,6 +54,3 @@ jobs:
       - run: npm run prisma:generate -w back
 
       - run: npm run worker:once -w back
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          REDIS_URL: ${{ secrets.REDIS_URL }}

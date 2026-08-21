@@ -20,6 +20,13 @@ jobs:
   aggregate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Mesmo bug do click-worker.yml, encontrado em 2026-08-21: env só no
+    # último passo não é suficiente — "prisma generate" também precisa
+    # de DATABASE_URL (o config resolve o env eagerly ao carregar) e
+    # falhava ali. Job falhou 100% das vezes desde que foi criado por
+    # causa disso; env no nível do job corrige.
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,5 +40,3 @@ jobs:
       - run: npm run prisma:generate -w back
 
       - run: npm run job:aggregate -w back
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
