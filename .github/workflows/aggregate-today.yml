@@ -1,0 +1,44 @@
+# Roda a agregação do dia CORRENTE a cada 10 minutos — complementa
+# aggregate-daily.yml (que só fecha "ontem", uma vez por dia). Sem isto,
+# um clique de hoje só apareceria no gráfico amanhã: decisão original da
+# fase 5 era rodar 1x/dia de madrugada, mas o usuário pediu quase-tempo-
+# real depois de testar e não ver o próprio clique refletido na hora.
+#
+# Seguro rodar repetido: aggregateDay() recalcula o total do zero a cada
+# chamada (nunca incrementa), então reprocessar um dia ainda "aberto" só
+# reflete o que existe em Clique até aquele instante — idempotente, sem
+# risco de duplicar. A consolidação de madrugada (aggregate-daily.yml)
+# continua sendo a fonte definitiva do dia já fechado.
+name: Agregação do dia corrente (quase tempo real)
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: aggregate-today
+  cancel-in-progress: false
+
+jobs:
+  aggregate-today:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    # Lição do bug em click-worker.yml/aggregate-daily.yml (2026-08-21):
+    # env no nível do JOB, não só do último step — "prisma generate"
+    # também precisa de DATABASE_URL.
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run prisma:generate -w back
+
+      - run: npm run job:aggregate:today -w back

@@ -8,6 +8,7 @@
     "worker": "tsx watch src/workers/click.worker.ts",
     "worker:once": "tsx src/workers/click.worker.ts --once",
     "job:aggregate": "tsx src/jobs/aggregate-daily.ts",
+    "job:aggregate:today": "tsx src/jobs/aggregate-daily.ts --today",
     "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "start:worker": "node dist/workers/click.worker.js",
