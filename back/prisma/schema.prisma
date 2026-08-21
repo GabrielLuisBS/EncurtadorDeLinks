@@ -44,6 +44,11 @@ model Usuario {
   email     String   @unique
   senhaHash String
   criadoEm  DateTime @default(now())
+  /// null = ainda não confirmou o e-mail. Não bloqueia login nem uso da
+  /// conta — mesma filosofia de "conta é acréscimo, não pré-requisito"
+  /// (ver Segurança/passo 11.4): confirmar é sobre garantir que o dono
+  /// do e-mail é quem diz ser, não uma trava de acesso.
+  emailVerificadoEm DateTime?
 
   links Link[]
 }

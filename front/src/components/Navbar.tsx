@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ChevronDownIcon, LinkIcon, LogOutIcon } from './icons';
+import { ApiError, reenviarVerificacao } from '../lib/api';
+import { ChevronDownIcon, InfoIcon, LinkIcon, LogOutIcon } from './icons';
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return isActive ? 'nav-link active' : 'nav-link';
@@ -19,6 +20,23 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [reenviando, setReenviando] = useState(false);
+  const [reenviado, setReenviado] = useState(false);
+  const [reenvioErro, setReenvioErro] = useState<string | null>(null);
+
+  async function handleReenviar() {
+    if (reenviando) return;
+    setReenviando(true);
+    setReenvioErro(null);
+    try {
+      await reenviarVerificacao();
+      setReenviado(true);
+    } catch (err) {
+      setReenvioErro(err instanceof ApiError ? err.message : 'Não foi possível reenviar.');
+    } finally {
+      setReenviando(false);
+    }
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -38,6 +56,7 @@ export default function Navbar() {
   }
 
   return (
+    <>
     <div className="navbar">
       <NavLink className="logo" to="/">
         <div className="logo-mark">
@@ -97,5 +116,24 @@ export default function Navbar() {
         </NavLink>
       )}
     </div>
+
+    {/* Verificação de e-mail (passo 11.4) não bloqueia nada no produto
+        — é só um lembrete. Some sozinho quando emailVerificado vira
+        true (AuthContext.refresh, chamado por VerificarEmail.tsx). */}
+    {usuario && !usuario.emailVerificado && (
+      <div className="verify-banner">
+        <InfoIcon size={15} />
+        <span>Confirme seu e-mail pra garantir o acesso à sua conta.</span>
+        {reenviado ? (
+          <span className="verify-banner-status">E-mail reenviado — confira sua caixa de entrada.</span>
+        ) : (
+          <button type="button" onClick={handleReenviar} disabled={reenviando}>
+            {reenviando ? 'Enviando...' : 'Reenviar e-mail'}
+          </button>
+        )}
+        {reenvioErro && <span className="verify-banner-status">{reenvioErro}</span>}
+      </div>
+    )}
+    </>
   );
 }

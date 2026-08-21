@@ -9,6 +9,10 @@ interface AuthContextValue {
   login: (email: string, senha: string) => Promise<void>;
   registrar: (nome: string, email: string, senha: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Refaz o GET /auth/me — usado depois de confirmar o e-mail
+   * (VerificarEmail.tsx) pra `usuario.emailVerificado` atualizar sem
+   * precisar de F5 ou logout/login. */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -44,8 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(null);
   }, []);
 
+  const refresh = useCallback(async () => {
+    setUsuario(await getMe());
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ usuario, carregando, login, registrar, logout }}>
+    <AuthContext.Provider value={{ usuario, carregando, login, registrar, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

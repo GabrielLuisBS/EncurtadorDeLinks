@@ -1,6 +1,10 @@
 import argon2 from "argon2";
 import type { Usuario } from "../generated/prisma/client.js";
 import { usuarioRepository } from "../repositories/usuario.repository.js";
+import { emailVerificationService } from "./email-verification.service.js";
+import { emailService } from "./email.service.js";
+
+const FRONT_URL = process.env.FRONT_URL ?? "http://localhost:5173";
 
 const MIN_SENHA_LENGTH = 8;
 // Mesmo teto de back/prisma/schema.prisma (Usuario.nome VarChar(120)) —
@@ -14,6 +18,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export class InvalidRegistrationError extends Error {}
 export class EmailInUseError extends Error {}
 export class InvalidCredentialsError extends Error {}
+export class InvalidVerificationTokenError extends Error {}
 
 function validateNome(nome: unknown): string {
   if (typeof nome !== "string" || nome.trim().length === 0) {
@@ -88,6 +93,33 @@ export const authService = {
       throw new InvalidCredentialsError("E-mail ou senha inválidos.");
     }
 
+    return usuario;
+  },
+
+  /**
+   * Dispara sem bloquear quem chama — se o Resend estiver fora do ar ou
+   * mal configurado, emailService.sendVerificationEmail já engole o erro
+   * e loga (ver o comentário lá). Registro e login nunca devem falhar
+   * por causa do envio de e-mail: a conta funciona sem verificação.
+   */
+  async enviarVerificacao(usuario: Usuario): Promise<void> {
+    const token = await emailVerificationService.create(usuario.id);
+    const link = `${FRONT_URL}/verificar-email?token=${token}`;
+    await emailService.sendVerificationEmail(usuario.email, usuario.nome, link);
+  },
+
+  async verificarEmail(token: unknown): Promise<Usuario> {
+    if (typeof token !== "string" || token.length === 0) {
+      throw new InvalidVerificationTokenError("Link de verificação inválido.");
+    }
+
+    const usuarioId = await emailVerificationService.resolve(token);
+    if (!usuarioId) {
+      throw new InvalidVerificationTokenError("Link de verificação inválido ou expirado.");
+    }
+
+    const usuario = await usuarioRepository.markEmailVerificado(usuarioId);
+    await emailVerificationService.destroy(token);
     return usuario;
   },
 };

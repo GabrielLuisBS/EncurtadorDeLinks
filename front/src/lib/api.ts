@@ -174,6 +174,9 @@ export interface Usuario {
   id: string;
   nome: string;
   email: string;
+  /** Passo 11.4 (verificação de e-mail) — não bloqueia nada no produto,
+   * só decide se o banner de "confirme seu e-mail" aparece. */
+  emailVerificado: boolean;
 }
 
 async function postAuth<T>(path: string, body: unknown): Promise<T> {
@@ -200,6 +203,23 @@ export function login(email: string, senha: string): Promise<Usuario> {
 
 export async function logout(): Promise<void> {
   await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+}
+
+/** Chamado pela página /verificar-email com o token da query string do
+ * link recebido por e-mail. */
+export function verificarEmail(token: string): Promise<Usuario> {
+  return postAuth('/auth/verificar-email', { token });
+}
+
+export async function reenviarVerificacao(): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/reenviar-verificacao`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new ApiError(extractErrorMessage(data, 'Não foi possível reenviar o e-mail.'));
+  }
 }
 
 /**

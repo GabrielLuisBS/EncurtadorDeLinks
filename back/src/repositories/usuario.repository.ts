@@ -15,4 +15,12 @@ export const usuarioRepository = {
   findByEmail(email: string): Promise<Usuario | null> {
     return prisma.usuario.findUnique({ where: { email } });
   },
+
+  findById(id: string): Promise<Usuario | null> {
+    return prisma.usuario.findUnique({ where: { id } });
+  },
+
+  markEmailVerificado(id: string): Promise<Usuario> {
+    return prisma.usuario.update({ where: { id }, data: { emailVerificadoEm: new Date() } });
+  },
 };

@@ -5,9 +5,11 @@ import {
   EmailInUseError,
   InvalidCredentialsError,
   InvalidRegistrationError,
+  InvalidVerificationTokenError,
 } from "../services/auth.service.js";
 import { attachUsuario, exigirUsuario } from "../services/auth-context.service.js";
 import { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS, sessionService } from "../services/session.service.js";
+import { usuarioRepository } from "../repositories/usuario.repository.js";
 import type { Usuario } from "../generated/prisma/client.js";
 
 interface RegistrarBody {
@@ -19,6 +21,10 @@ interface RegistrarBody {
 interface LoginBody {
   email?: string;
   senha?: string;
+}
+
+interface VerificarEmailBody {
+  token?: string;
 }
 
 async function startSession(reply: FastifyReply, usuario: Usuario): Promise<void> {
@@ -39,10 +45,20 @@ async function startSession(reply: FastifyReply, usuario: Usuario): Promise<void
   });
 }
 
+function serializeUsuario(usuario: Usuario) {
+  return {
+    id: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email,
+    emailVerificado: usuario.emailVerificadoEm !== null,
+  };
+}
+
 export async function authRoutes(app: FastifyInstance) {
-  // Opcional em todo o plugin — /auth/me e /auth/logout precisam saber
-  // quem está pedindo; registrar/login não precisam, mas rodar sempre é
-  // mais simples que decidir rota a rota, e o custo é um GET no Redis.
+  // Opcional em todo o plugin — /auth/me, /auth/logout e
+  // /auth/reenviar-verificacao precisam saber quem está pedindo;
+  // registrar/login não precisam, mas rodar sempre é mais simples que
+  // decidir rota a rota, e o custo é um GET no Redis.
   app.addHook("onRequest", attachUsuario);
 
   // Escopado a este plugin — teto bem mais apertado que o rate limit
@@ -60,7 +76,12 @@ export async function authRoutes(app: FastifyInstance) {
     try {
       const usuario = await authService.register(nome, email, senha);
       await startSession(reply, usuario);
-      return reply.status(201).send({ id: usuario.id, nome: usuario.nome, email: usuario.email });
+      // Dispara e não bloqueia a resposta: sendVerificationEmail já
+      // engole falhas de envio internamente (ver email.service.ts) — a
+      // conta precisa existir e responder 201 mesmo se o Resend estiver
+      // fora do ar.
+      await authService.enviarVerificacao(usuario);
+      return reply.status(201).send(serializeUsuario(usuario));
     } catch (error) {
       if (error instanceof InvalidRegistrationError) {
         return reply.status(400).send({ error: error.message });
@@ -78,7 +99,7 @@ export async function authRoutes(app: FastifyInstance) {
     try {
       const usuario = await authService.authenticate(email, senha);
       await startSession(reply, usuario);
-      return reply.send({ id: usuario.id, nome: usuario.nome, email: usuario.email });
+      return reply.send(serializeUsuario(usuario));
     } catch (error) {
       if (error instanceof InvalidCredentialsError) {
         // Mesmo status e corpo tanto para "e-mail não existe" quanto para
@@ -96,11 +117,24 @@ export async function authRoutes(app: FastifyInstance) {
   // httpOnly). Teto de rate limit próprio, bem mais generoso que
   // login/registro: isto roda a cada carregamento de página, não é alvo
   // de força bruta.
+  //
+  // Vai ao Postgres (não usa só o que já está cacheado na sessão) porque
+  // emailVerificadoEm muda *durante* a vida da sessão (a pessoa confirma
+  // o e-mail depois de já estar logada) — nome/email não mudam nunca
+  // (sem edição de perfil no produto), mas esse campo muda, então cachear
+  // ele na sessão mostraria "não verificado" pra sempre até expirar/logar
+  // de novo.
   app.get(
     "/auth/me",
     { preHandler: exigirUsuario, config: { rateLimit: { max: 60, timeWindow: "1 minute" } } },
     async (request, reply) => {
-      return reply.send(request.usuario);
+      const usuario = await usuarioRepository.findById(request.usuarioId as string);
+      if (!usuario) {
+        // Conta apagada com a sessão ainda válida no Redis (TTL de 30
+        // dias sobrevive à conta) — trata como deslogado, não como erro.
+        return reply.status(401).send({ error: "Sessão inválida ou expirada." });
+      }
+      return reply.send(serializeUsuario(usuario));
     },
   );
 
@@ -116,6 +150,47 @@ export async function authRoutes(app: FastifyInstance) {
         }
       }
       reply.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
+      return reply.status(204).send();
+    },
+  );
+
+  // Chamado pela página /verificar-email do front com o token da query
+  // string do link mandado por e-mail. Não exige sessão — quem clica no
+  // link pode não estar logado neste navegador (ex.: abriu num app de
+  // e-mail separado).
+  app.post<{ Body: VerificarEmailBody }>(
+    "/auth/verificar-email",
+    { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      try {
+        const usuario = await authService.verificarEmail(request.body?.token);
+        return reply.send(serializeUsuario(usuario));
+      } catch (error) {
+        if (error instanceof InvalidVerificationTokenError) {
+          return reply.status(400).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  // Exige sessão — reenviar é uma ação de quem já está logado e quer
+  // confirmar o próprio e-mail, não algo que se faz por outra pessoa.
+  // Rate limit mais apertado que /auth/me: dispara envio de e-mail de
+  // verdade (custa e pode ser abusado pra spam), o teto padrão do
+  // plugin (5/min) já cobre isso.
+  app.post(
+    "/auth/reenviar-verificacao",
+    { preHandler: exigirUsuario },
+    async (request, reply) => {
+      const usuario = await usuarioRepository.findById(request.usuarioId as string);
+      if (!usuario) {
+        return reply.status(401).send({ error: "Sessão inválida ou expirada." });
+      }
+      if (usuario.emailVerificadoEm) {
+        return reply.status(400).send({ error: "Este e-mail já foi confirmado." });
+      }
+      await authService.enviarVerificacao(usuario);
       return reply.status(204).send();
     },
   );
