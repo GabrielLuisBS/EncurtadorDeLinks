@@ -1,0 +1,54 @@
+# Blueprint do Render para o back do Linkly — dois serviços a partir do
+# mesmo monorepo: a API HTTP (web) e o worker de cliques (fase 4, passo
+# 4.2) como background worker separado, lendo o mesmo Redis Stream.
+#
+# Os comandos rodam a partir da raiz do repo (não de "back/"), de
+# propósito: é um monorepo com npm workspaces, e "npm ci" na raiz é o
+# que resolve o lockfile único (package-lock.json) e o node_modules
+# hoisted corretamente — rodar dentro de back/ sozinho não vê o
+# workspace. Ver [[Stack e Ferramentas]] no Obsidian.
+#
+# DATABASE_URL e REDIS_URL não têm valor aqui (sync: false) de propósito
+# — são segredos, não pertencem a um arquivo versionado. Preencha os dois
+# manualmente no dashboard do Render (Environment) depois do primeiro
+# deploy, com os mesmos valores do back/.env local (ver back/.env.example
+# para o formato e onde pegar cada um).
+services:
+  - type: web
+    name: linkly-back
+    runtime: node
+    plan: free
+    region: ohio # AWS us-east-2 — mesma região do Neon deste projeto, pra reduzir latência de rede (ver benchmark do passo 9.1)
+    buildCommand: npm ci && npm run build -w back
+    startCommand: npm run start -w back
+    healthCheckPath: /metrics
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: FRONT_URL
+        sync: false # URL de produção do front (Vercel), definida no passo 10.3
+      - key: PUBLIC_BASE_URL
+        sync: false # URL pública deste serviço (ex.: https://linkly-back.onrender.com), pra POST /links montar urlCurta certo
+      # PORT não entra aqui: o Render injeta a própria variável PORT em
+      # todo Web Service, e server.ts já lê process.env.PORT (ver
+      # back/src/server.ts) — declarar um valor fixo aqui colidiria com
+      # o que o Render atribui de verdade.
+
+  - type: worker
+    name: linkly-click-worker
+    runtime: node
+    # Render não oferece o plano "free" para Background Worker (só para
+    # Web Service) — o mais barato disponível é "starter". Custo real,
+    # não descuido: sem isso o clique fica só publicado no Stream e nunca
+    # vira linha em Clique (ver [[Registro de Cliques]]).
+    plan: starter
+    region: ohio
+    buildCommand: npm ci && npm run build -w back
+    startCommand: npm run start:worker -w back
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
