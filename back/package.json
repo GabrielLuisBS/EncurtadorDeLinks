@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "worker": "tsx watch src/workers/click.worker.ts",
+    "worker:once": "tsx src/workers/click.worker.ts --once",
     "job:aggregate": "tsx src/jobs/aggregate-daily.ts",
     "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",

@@ -1,0 +1,50 @@
+# Consome o Redis Stream de cliques (cliques:eventos) a cada 5 minutos e
+# termina — substitui o Background Worker do Render, que exigiria o
+# plano pago "starter" (decisão em 2026-08-21, ver render.yaml e TODO.md
+# no Obsidian). Repositório é público, então isto roda em minutos de
+# Actions ilimitados — não conta contra nenhuma cota.
+#
+# Sem isto: GET /:slug continua publicando o clique no Stream (não
+# bloqueia o redirect), mas nada consome — a tabela Clique nunca recebe
+# linha nova em produção, e o dashboard fica sempre zerado.
+name: Consumir fila de cliques
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  # Permite disparar manualmente pela aba Actions do GitHub, sem esperar
+  # o cron — útil pra testar depois de mexer no worker ou nos secrets.
+  workflow_dispatch: {}
+
+concurrency:
+  # Evita duas execuções lendo como o mesmo CONSUMER_NAME ao mesmo tempo
+  # se um run atrasar além do intervalo de 5 minutos.
+  group: click-worker
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    # Bem abaixo do intervalo do cron (5 min) — se passar disso, algo
+    # está preso (ex.: Postgres/Redis fora do ar), e travar o job runner
+    # indefinidamente só atrasaria a próxima tentativa.
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Client Prisma é gerado, não versionado (back/src/generated está
+      # no .gitignore) — precisa existir antes do worker rodar, mesma
+      # exigência do build local (ver Stack e Ferramentas no Obsidian).
+      - run: npm run prisma:generate -w back
+
+      - run: npm run worker:once -w back
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}

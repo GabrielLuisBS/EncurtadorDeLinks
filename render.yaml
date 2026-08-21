@@ -1,12 +1,28 @@
-# Blueprint do Render para o back do Linkly — dois serviços a partir do
-# mesmo monorepo: a API HTTP (web) e o worker de cliques (fase 4, passo
-# 4.2) como background worker separado, lendo o mesmo Redis Stream.
+# Blueprint do Render para o back do Linkly.
 #
-# Os comandos rodam a partir da raiz do repo (não de "back/"), de
-# propósito: é um monorepo com npm workspaces, e "npm ci" na raiz é o
-# que resolve o lockfile único (package-lock.json) e o node_modules
-# hoisted corretamente — rodar dentro de back/ sozinho não vê o
-# workspace. Ver [[Stack e Ferramentas]] no Obsidian.
+# Só o serviço web por decisão consciente (2026-08-21): o worker de
+# cliques (fase 4, passo 4.2) ficaria como Background Worker, e o Render
+# não oferece plano free pra esse tipo de serviço — só "starter"
+# (~$7/mês) pra cima. Decidido adiar o custo em vez de pagar agora.
+#
+# Em vez de pagar pelo Background Worker, o consumo do Redis Stream roda
+# via .github/workflows/click-worker.yml — um cron do GitHub Actions a
+# cada 5 minutos chamando "npm run worker:once -w back" (modo drena-e-
+# termina de back/src/workers/click.worker.ts), grátis porque o repo é
+# público. Ver TODO.md pra decisão e trade-off (latência de até ~5min
+# pro clique aparecer no dashboard, contra zero custo extra).
+#
+# Pra trocar pelo Background Worker real depois: novo serviço no Render,
+# type: worker, mesmo buildCommand, startCommand
+# "npm run start:worker -w back", plano starter — e desativar o workflow
+# do GitHub Actions (os dois consumindo o mesmo grupo ao mesmo tempo não
+# quebra nada, mas é redundante).
+#
+# O comando roda a partir da raiz do repo (não de "back/"), de propósito:
+# é um monorepo com npm workspaces, e "npm ci" na raiz é o que resolve o
+# lockfile único (package-lock.json) e o node_modules hoisted
+# corretamente — rodar dentro de back/ sozinho não vê o workspace. Ver
+# [[Stack e Ferramentas]] no Obsidian.
 #
 # DATABASE_URL e REDIS_URL não têm valor aqui (sync: false) de propósito
 # — são segredos, não pertencem a um arquivo versionado. Preencha os dois
@@ -35,20 +51,3 @@ services:
       # todo Web Service, e server.ts já lê process.env.PORT (ver
       # back/src/server.ts) — declarar um valor fixo aqui colidiria com
       # o que o Render atribui de verdade.
-
-  - type: worker
-    name: linkly-click-worker
-    runtime: node
-    # Render não oferece o plano "free" para Background Worker (só para
-    # Web Service) — o mais barato disponível é "starter". Custo real,
-    # não descuido: sem isso o clique fica só publicado no Stream e nunca
-    # vira linha em Clique (ver [[Registro de Cliques]]).
-    plan: starter
-    region: ohio
-    buildCommand: npm ci && npm run build -w back
-    startCommand: npm run start:worker -w back
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
