@@ -2,6 +2,12 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3333';
 
 export class ApiError extends Error {}
 
+function extractErrorMessage(data: unknown, fallback: string): string {
+  return data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
+    ? data.error
+    : fallback;
+}
+
 export interface CreateLinkResult {
   slug: string;
   urlCurta: string;
@@ -17,11 +23,7 @@ export async function createLink(url: string): Promise<CreateLinkResult> {
   const data: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message =
-      data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
-        ? data.error
-        : 'Não foi possível encurtar o link.';
-    throw new ApiError(message);
+    throw new ApiError(extractErrorMessage(data, 'Não foi possível encurtar o link.'));
   }
 
   return data as CreateLinkResult;
@@ -72,4 +74,80 @@ export async function getByDispositivoGlobal(periodo: Periodo): Promise<Disposit
     throw new ApiError('Não foi possível carregar a distribuição por dispositivo.');
   }
   return (await response.json()) as DispositivoPonto[];
+}
+
+export type LinkStatus = 'ativo' | 'desativado' | 'expirado';
+
+export interface LinkDetalhe {
+  slug: string;
+  urlDestino: string;
+  urlCurta: string;
+  ativo: boolean;
+  criadoEm: string;
+  expiraEm: string | null;
+  status: LinkStatus;
+}
+
+export async function getLink(slug: string): Promise<LinkDetalhe> {
+  const response = await fetch(`${API_URL}/links/${slug}`);
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new ApiError(extractErrorMessage(data, 'Não foi possível carregar o link.'));
+  }
+  return data as LinkDetalhe;
+}
+
+export interface LinkStatsSummary {
+  slug: string;
+  totalCliques: number;
+  cliquesNoPeriodo: number;
+  criadoEm: string;
+  expiraEm: string | null;
+  status: LinkStatus;
+}
+
+export async function getLinkStats(slug: string, periodo: Periodo): Promise<LinkStatsSummary> {
+  const response = await fetch(`${API_URL}/links/${slug}/stats?periodo=${periodo}`);
+  if (!response.ok) {
+    throw new ApiError('Não foi possível carregar as estatísticas do link.');
+  }
+  return (await response.json()) as LinkStatsSummary;
+}
+
+/** Série de um link específico — diferente de getSeriesGlobal (que soma
+ * entre todos os links, usada na tela de Estatísticas). */
+export async function getLinkSeries(slug: string, periodo: Periodo): Promise<SeriePonto[]> {
+  const response = await fetch(`${API_URL}/links/${slug}/stats/series?periodo=${periodo}`);
+  if (!response.ok) {
+    throw new ApiError('Não foi possível carregar a série de cliques do link.');
+  }
+  return (await response.json()) as SeriePonto[];
+}
+
+export interface UpdateLinkInput {
+  ativo?: boolean;
+  expiraEm?: string | null;
+}
+
+export interface UpdateLinkResult {
+  slug: string;
+  ativo: boolean;
+  expiraEm: string | null;
+}
+
+export async function updateLink(slug: string, input: UpdateLinkInput): Promise<UpdateLinkResult> {
+  const response = await fetch(`${API_URL}/links/${slug}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new ApiError(extractErrorMessage(data, 'Não foi possível atualizar o link.'));
+  }
+  return data as UpdateLinkResult;
+}
+
+export function qrCodeUrl(slug: string): string {
+  return `${API_URL}/links/${slug}/qrcode`;
 }

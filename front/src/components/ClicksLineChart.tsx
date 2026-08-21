@@ -1,21 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { getSeriesGlobal, type Periodo, type SeriePonto } from '../lib/api';
+import { formatShortDate, formatWeekday } from '../lib/format';
 import { TrendingUpIcon } from './icons';
 
-const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-// `dia` vem como meia-noite UTC (ver nota "Modelo de Dados") — usar
-// getUTC* evita que o fuso horário local empurre a data pro dia errado.
 // Nome do dia da semana só faz sentido pro período de 7 dias (é o que o
 // mockup mostra); em 30/90 dias repetiria "Seg, Ter, Qua..." várias vezes
 // sem dizer qual semana, então vira dia/mês.
 function formatTick(iso: string, periodo: Periodo): string {
-  const date = new Date(iso);
   if (periodo === 7) {
-    return WEEKDAYS[date.getUTCDay()];
+    return formatWeekday(iso);
   }
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
 }
 
 // Espaça os rótulos do eixo X pra não empilhar 30/90 labels ilegíveis —
@@ -23,14 +19,6 @@ function formatTick(iso: string, periodo: Periodo): string {
 // entre cada rótulo exibido).
 function tickInterval(periodo: Periodo): number | 'preserveStartEnd' {
   return periodo === 7 ? 0 : Math.ceil(periodo / 6) - 1;
-}
-
-function formatFullDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    timeZone: 'UTC',
-  });
 }
 
 interface ChartTooltipProps {
@@ -43,7 +31,7 @@ function ChartTooltip({ active, payload }: ChartTooltipProps) {
   const point = payload[0].payload;
   return (
     <div className="chart-tooltip">
-      <div className="chart-tooltip-date">{formatFullDate(point.dia)}</div>
+      <div className="chart-tooltip-date">{formatShortDate(point.dia)}</div>
       <div className="chart-tooltip-value">{point.total} cliques</div>
     </div>
   );

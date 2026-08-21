@@ -4,6 +4,7 @@ import Fastify, { type FastifyError } from "fastify";
 import { linksRoutes } from "./routes/links.routes.js";
 import { redirectRoutes } from "./routes/redirect.routes.js";
 import { statsRoutes } from "./routes/stats.routes.js";
+import { metricsRegistry } from "./metrics.js";
 
 const app = Fastify({ logger: true });
 const port = Number(process.env.PORT ?? 3333);
@@ -13,8 +14,13 @@ const frontUrl = process.env.FRONT_URL ?? "http://localhost:5173";
 // diferente: 5173 vs 3333) antes mesmo dela chegar aqui — não afeta curl
 // nem o redirecionamento (GET /:slug é navegação de página inteira, CORS
 // não se aplica a isso, só a fetch/XHR entre origens).
+//
+// `methods` explícito porque o default do plugin é "GET,HEAD,POST" — sem
+// isso o preflight do PATCH /links/:slug (passo 8.3) falha silenciosamente
+// no navegador, mesmo com curl funcionando normal (curl não aplica CORS).
 await app.register(cors, {
   origin: frontUrl,
+  methods: ["GET", "HEAD", "POST", "PATCH"],
 });
 
 // Sem isto, um erro não tratado (ex.: Prisma, Redis) cai no handler padrão
@@ -38,6 +44,14 @@ app.setErrorHandler((error: FastifyError, request, reply) => {
 app.register(linksRoutes);
 app.register(statsRoutes);
 app.register(redirectRoutes);
+
+// Sem autenticação por enquanto — são contadores agregados (nenhum dado
+// de link ou usuário individual), mas expor isso publicamente em produção
+// é uma pendência para a fase 10 (deploy), não para agora. Ver TODO.md.
+app.get("/metrics", async (_request, reply) => {
+  reply.header("Content-Type", metricsRegistry.contentType);
+  return metricsRegistry.metrics();
+});
 
 app.listen({ port, host: "0.0.0.0" }).catch((err) => {
   app.log.error(err);

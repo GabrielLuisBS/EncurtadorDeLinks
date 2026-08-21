@@ -9,6 +9,7 @@ import {
 } from "../services/link.service.js";
 import { qrcodeService } from "../services/qrcode.service.js";
 import { isValidSlugFormat } from "../services/slug.js";
+import { rateLimitBlockedTotal } from "../metrics.js";
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL ?? "http://localhost:3333";
 
@@ -33,6 +34,12 @@ export async function linksRoutes(app: FastifyInstance) {
   await app.register(rateLimit, {
     max: 20,
     timeWindow: "1 minute",
+    // onExceeded (não onExceeding) dispara só na requisição que de fato
+    // levou o 429 — é a métrica "abuso real vs. limite mal calibrado" da
+    // nota "Observabilidade", não toda requisição próxima do teto.
+    onExceeded: (request) => {
+      rateLimitBlockedTotal.inc({ rota: request.routeOptions.url ?? request.url });
+    },
   });
 
   app.post<{ Body: CreateLinkBody }>(
@@ -72,6 +79,7 @@ export async function linksRoutes(app: FastifyInstance) {
         return reply.send({
           slug: link.slug,
           urlDestino: link.urlDestino,
+          urlCurta: `${PUBLIC_BASE_URL}/${link.slug}`,
           ativo: link.ativo,
           criadoEm: link.criadoEm,
           expiraEm: link.expiraEm,

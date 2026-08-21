@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { redirectService } from "../services/redirect.service.js";
 import { isValidSlugFormat } from "../services/slug.js";
 import { clickQueueService } from "../services/click-queue.service.js";
+import { redirectLatencySeconds } from "../metrics.js";
 import {
   classifyDevice,
   getCountryFromHeaders,
@@ -25,17 +26,26 @@ const MAX_PAIS_LENGTH = 100;
 export async function redirectRoutes(app: FastifyInstance) {
   app.get<{ Params: RedirectParams }>("/:slug", async (request, reply) => {
     const { slug } = request.params;
+    // Cronometra o handler inteiro (formato do slug até a decisão final),
+    // não só resolveLink — a resposta 404 de slug malformado também é
+    // latência real que o usuário sente. Não inclui a publicação do
+    // clique, que é fire-and-forget e não atrasa a resposta de propósito
+    // (ver comentário abaixo).
+    const stopTimer = redirectLatencySeconds.startTimer();
 
     if (!isValidSlugFormat(slug)) {
+      stopTimer({ resultado: "not_found" });
       return reply.status(404).send({ error: "Link não encontrado." });
     }
 
     const result = await redirectService.resolveLink(slug);
 
     if (result.status === "not_found") {
+      stopTimer({ resultado: "not_found" });
       return reply.status(404).send({ error: "Link não encontrado." });
     }
     if (result.status === "gone") {
+      stopTimer({ resultado: "gone" });
       return reply.status(410).send({ error: "Link desativado ou expirado." });
     }
 
@@ -54,6 +64,7 @@ export async function redirectRoutes(app: FastifyInstance) {
         request.log.error({ err }, "falha ao publicar evento de clique");
       });
 
+    stopTimer({ resultado: "ok" });
     // 302, nunca 301 — o navegador precisa continuar passando pelo
     // servidor a cada acesso para o clique ser contabilizado.
     return reply.redirect(result.urlDestino, 302);

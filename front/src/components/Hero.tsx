@@ -1,10 +1,7 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { ApiError, createLink, type CreateLinkResult } from '../lib/api';
+import { stripProtocol } from '../lib/format';
 import { CopyIcon, ExternalLinkIcon, LinkIcon } from './icons';
-
-function displayUrl(fullUrl: string): string {
-  return fullUrl.replace(/^https?:\/\//, '');
-}
 
 export default function Hero() {
   const [url, setUrl] = useState('');
@@ -91,7 +88,7 @@ export default function Hero() {
               <div className="short-badge">
                 <LinkIcon size={16} />
               </div>
-              <div className="url-short">{displayUrl(result.urlCurta)}</div>
+              <div className="url-short">{stripProtocol(result.urlCurta)}</div>
             </div>
             <div className="result-actions">
               <button type="button" className="btn-copy" onClick={handleCopy}>
