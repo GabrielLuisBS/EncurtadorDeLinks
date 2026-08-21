@@ -40,7 +40,14 @@ services:
     runtime: node
     plan: free
     region: ohio # AWS us-east-2 — mesma região do Neon deste projeto, pra reduzir latência de rede (ver benchmark do passo 9.1)
-    buildCommand: npm ci && npm run build -w back
+    # --include=dev é obrigatório aqui: com NODE_ENV=production setado
+    # (abaixo, pro cookie Secure), "npm ci" sozinho pula devDependencies
+    # — inclusive @types/* e o próprio typescript, que o build precisa
+    # pra compilar. Achado real: o primeiro deploy (passo 10.2, antes do
+    # NODE_ENV existir) funcionou sem essa flag; o primeiro deploy depois
+    # do passo 11.2 falhou com "Could not find a declaration file for
+    # module 'qrcode'" — sintoma exato de devDependency pulada.
+    buildCommand: npm ci --include=dev && npm run build -w back
     startCommand: npm run start -w back
     healthCheckPath: /metrics
     envVars:
