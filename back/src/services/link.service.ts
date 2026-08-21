@@ -1,5 +1,6 @@
 import type { Link } from "../generated/prisma/client.js";
 import { linkRepository } from "../repositories/link.repository.js";
+import type { Pagination } from "../utils/stats-query.js";
 import { cacheService } from "./cache.service.js";
 import { generateUniqueSlug } from "./slug.js";
 
@@ -24,6 +25,24 @@ export class InvalidExpirationError extends Error {
   constructor(reason: string) {
     super(`Data de expiração inválida: ${reason}`);
     this.name = "InvalidExpirationError";
+  }
+}
+
+/**
+ * Passo 11.3 — cobre tanto "link tem outro dono" quanto "link não tem
+ * dono nenhum". Decisão registrada: um link sem usuarioId (criado antes
+ * da fase 11, ou anonimamente depois — continua sendo um caso de uso de
+ * primeira classe, ver passo 11.1) fica **imutável por PATCH** e **fora
+ * do GET /links** pra sempre, não só até alguém "reivindicar" — não
+ * existe mecanismo de prova de posse retroativa, e inventar um (ex.:
+ * "primeiro a tentar depois do login vira dono") seria uma falha de
+ * segurança óbvia: qualquer pessoa com o slug poderia reivindicar o link
+ * de outra. Ver PATCH /links/:slug em links.routes.ts.
+ */
+export class LinkOwnershipError extends Error {
+  constructor() {
+    super("Você não tem permissão para alterar este link.");
+    this.name = "LinkOwnershipError";
   }
 }
 
@@ -79,14 +98,26 @@ export const linkService = {
   /**
    * Valida a URL e cria o Link com um slug único. Não sabe o que é HTTP —
    * a rota (fase 2.3) traduz InvalidUrlError para 400 e monta a resposta.
+   *
+   * `usuarioId` é opcional (passo 11.3, modo "opcional" do preHandler de
+   * auth): grava o dono quando há sessão, cria sem dono quando não —
+   * encurtar link sem conta continua funcionando exatamente como antes.
    */
-  async createLink(urlDestino: string): Promise<Link> {
+  async createLink(urlDestino: string, usuarioId?: string): Promise<Link> {
     validateUrl(urlDestino);
 
     return generateUniqueSlug({
-      tryInsert: (slug) => linkRepository.create({ slug, urlDestino }),
+      tryInsert: (slug) => linkRepository.create({ slug, urlDestino, usuarioId }),
       isUniqueConstraintViolation: linkRepository.isUniqueSlugViolation,
     });
+  },
+
+  /** Passo 11.3 — "Meus links". `usuarioId` sempre vem de uma sessão já
+   * validada (modo obrigatório do preHandler), nunca de entrada do
+   * cliente, então não há checagem de posse aqui: o filtro já é a
+   * garantia. */
+  listByUsuario(usuarioId: string, page: Pagination): Promise<Link[]> {
+    return linkRepository.findManyByUsuario(usuarioId, page);
   },
 
   async getBySlug(slug: string): Promise<Link> {
@@ -104,9 +135,18 @@ export const linkService = {
    * com `ativo` (ver "Cache e Redis"), então mudar qualquer um dos dois sem
    * invalidar deixa o link respondendo pelo valor antigo até o TTL expirar.
    */
+  /**
+   * `usuarioId` é o dono resolvido da sessão (preHandler obrigatório —
+   * ver auth-context.service.ts), nunca opcional aqui: PATCH sempre
+   * exige login desde o passo 11.3. Comparação cobre os dois casos da
+   * LinkOwnershipError num só `!==`: link.usuarioId null (sem dono) já
+   * não bate com nenhuma string de sessão real, e dono diferente também
+   * não bate — nenhum dos dois precisa de branch separado.
+   */
   async update(
     slug: string,
     input: { ativo?: boolean; expiraEm?: string | null },
+    usuarioId: string,
   ): Promise<Link> {
     const data: { ativo?: boolean; expiraEm?: Date | null } = {};
     if (input.ativo !== undefined) {
@@ -117,6 +157,10 @@ export const linkService = {
     }
 
     const link = await linkService.getBySlug(slug);
+    if (link.usuarioId !== usuarioId) {
+      throw new LinkOwnershipError();
+    }
+
     const updated = await linkRepository.update(link.id, data);
     await cacheService.del(slug);
     return updated;

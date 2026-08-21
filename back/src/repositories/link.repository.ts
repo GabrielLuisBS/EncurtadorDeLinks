@@ -1,10 +1,16 @@
 import { Prisma } from "../generated/prisma/client.js";
 import type { Link } from "../generated/prisma/client.js";
 import { prisma } from "../db/prisma.js";
+import type { Pagination } from "../utils/stats-query.js";
 
 interface CreateLinkInput {
   slug: string;
   urlDestino: string;
+  /** undefined (não coluna NULL explícita) quando criado sem sessão —
+   * Prisma trata "não informado" como não setar a coluna, que aqui tem
+   * default implícito NULL por ser nullable. Mesmo resultado, forma
+   * mais direta de expressar "sem dono" na chamada. */
+  usuarioId?: string;
 }
 
 export const linkRepository = {
@@ -14,6 +20,19 @@ export const linkRepository = {
 
   findBySlug(slug: string): Promise<Link | null> {
     return prisma.link.findUnique({ where: { slug } });
+  },
+
+  /** Passo 11.3 — sustenta "Meus links": só links com usuarioId igual ao
+   * da sessão, nunca os sem dono (ver decisão em link.service.ts). Ordem
+   * e filtro combinados usam o índice (usuarioId, criadoEm) do passo
+   * 11.1 direto, sem sort separado. */
+  findManyByUsuario(usuarioId: string, page: Pagination): Promise<Link[]> {
+    return prisma.link.findMany({
+      where: { usuarioId },
+      orderBy: { criadoEm: "desc" },
+      skip: page.skip,
+      take: page.take,
+    });
   },
 
   count(): Promise<number> {
