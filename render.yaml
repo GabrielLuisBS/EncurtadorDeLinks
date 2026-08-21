@@ -52,6 +52,10 @@ services:
         sync: false # URL de produção do front (Vercel), definida no passo 10.3
       - key: PUBLIC_BASE_URL
         sync: false # URL pública deste serviço (ex.: https://linkly-back.onrender.com), pra POST /links montar urlCurta certo
+      - key: COOKIE_SECRET
+        sync: false # passo 11.2 — string aleatória longa, gere com: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      - key: NODE_ENV
+        value: production # habilita o cookie de sessão com Secure (só HTTPS) — ver comentário em server.ts
       # PORT não entra aqui: o Render injeta a própria variável PORT em
       # todo Web Service, e server.ts já lê process.env.PORT (ver
       # back/src/server.ts) — declarar um valor fixo aqui colidiria com

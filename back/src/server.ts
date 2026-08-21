@@ -1,6 +1,8 @@
 import "dotenv/config";
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import Fastify, { type FastifyError } from "fastify";
+import { authRoutes } from "./routes/auth.routes.js";
 import { linksRoutes } from "./routes/links.routes.js";
 import { redirectRoutes } from "./routes/redirect.routes.js";
 import { statsRoutes } from "./routes/stats.routes.js";
@@ -18,9 +20,25 @@ const frontUrl = process.env.FRONT_URL ?? "http://localhost:5173";
 // `methods` explícito porque o default do plugin é "GET,HEAD,POST" — sem
 // isso o preflight do PATCH /links/:slug (passo 8.3) falha silenciosamente
 // no navegador, mesmo com curl funcionando normal (curl não aplica CORS).
+// `credentials: true` é obrigatório a partir da fase 11 (passo 11.2): o
+// cookie de sessão só atravessa a chamada fetch entre origens diferentes
+// (Vercel → Render) se o back mandar `Access-Control-Allow-Credentials`
+// E o front pedir `credentials: "include"` em cada chamada (isso último
+// fica pro passo 11.4, front ainda não manda). Não é compatível com
+// `origin: "*"` — outro motivo pra `FRONT_URL` continuar sendo uma
+// origem explícita, nunca wildcard.
 await app.register(cors, {
   origin: frontUrl,
   methods: ["GET", "HEAD", "POST", "PATCH"],
+  credentials: true,
+});
+
+// Assina o cookie de sessão (ver session.service.ts) — o valor em si já
+// é um token opaco sem significado fora do Redis, então a assinatura é
+// uma segunda camada (detecta adulteração antes até de bater no Redis),
+// não a única proteção.
+await app.register(cookie, {
+  secret: process.env.COOKIE_SECRET,
 });
 
 // Sem isto, um erro não tratado (ex.: Prisma, Redis) cai no handler padrão
@@ -44,6 +62,7 @@ app.setErrorHandler((error: FastifyError, request, reply) => {
 app.register(linksRoutes);
 app.register(statsRoutes);
 app.register(redirectRoutes);
+app.register(authRoutes);
 
 // Sem autenticação por enquanto — são contadores agregados (nenhum dado
 // de link ou usuário individual), mas expor isso publicamente em produção

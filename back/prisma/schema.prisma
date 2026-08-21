@@ -34,8 +34,13 @@ model Link {
   @@index([usuarioId, criadoEm])
 }
 
+/// nome: gap descoberto depois do passo 11.1 — "Tela - Entrar" mostra um
+/// campo Nome no formulário de criar conta, mas o passo 11.1 seguiu à
+/// risca a lista de campos do prompt original, que não incluía nome.
+/// Resolvido em 2026-08-21 adicionando o campo (ver Log de Mudanças).
 model Usuario {
   id        String   @id @default(uuid())
+  nome      String   @db.VarChar(120)
   email     String   @unique
   senhaHash String
   criadoEm  DateTime @default(now())
