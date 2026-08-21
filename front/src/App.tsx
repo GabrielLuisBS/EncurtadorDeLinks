@@ -1,15 +1,14 @@
-import Hero from './components/Hero';
-import Navbar from './components/Navbar';
-import StatsSummary from './components/StatsSummary';
+import { Route, Routes } from 'react-router-dom';
+import Estatisticas from './pages/Estatisticas';
+import Home from './pages/Home';
 import './App.css';
 
 function App() {
   return (
-    <div className="page">
-      <Navbar />
-      <Hero />
-      <StatsSummary />
-    </div>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/estatisticas" element={<Estatisticas />} />
+    </Routes>
   );
 }
 

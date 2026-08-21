@@ -290,3 +290,221 @@
   font-size: 14px;
   color: var(--text-2);
 }
+
+.content {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 40px 96px;
+}
+
+.page-header {
+  padding-top: 64px;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.page-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.page-header .subtitle {
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.period-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px 32px;
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.panel-ico {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.panel-empty {
+  padding: 48px 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+.chart-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 10px 14px;
+}
+
+.chart-tooltip-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.chart-tooltip-value {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stats-section {
+  margin-top: 24px;
+}
+
+.period-filter {
+  position: relative;
+}
+
+.period-chip {
+  cursor: pointer;
+  background: transparent;
+}
+
+.period-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+}
+
+.period-option {
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.period-option:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.period-option.active {
+  color: var(--accent);
+}
+
+.donut-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.donut-figure {
+  position: relative;
+  width: 180px;
+  height: 180px;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-center .num {
+  font-family: 'Sora', sans-serif;
+  font-weight: 800;
+  font-size: 22px;
+}
+
+.donut-center .lbl {
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  flex-grow: 1;
+}
+
+.legend-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}

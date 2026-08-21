@@ -39,3 +39,37 @@ export async function getResumo(): Promise<Resumo> {
   }
   return (await response.json()) as Resumo;
 }
+
+export type Periodo = 7 | 30 | 90;
+
+export interface SeriePonto {
+  dia: string;
+  total: number;
+}
+
+/**
+ * Série global (soma entre todos os links) pro gráfico de linha da tela de
+ * Estatísticas — não é a série de um link específico.
+ */
+export async function getSeriesGlobal(periodo: Periodo): Promise<SeriePonto[]> {
+  const response = await fetch(`${API_URL}/stats/series?periodo=${periodo}`);
+  if (!response.ok) {
+    throw new ApiError('Não foi possível carregar a série de cliques.');
+  }
+  return (await response.json()) as SeriePonto[];
+}
+
+export interface DispositivoPonto {
+  dispositivo: string;
+  total: number;
+}
+
+/** Distribuição por dispositivo global (soma entre todos os links) pro
+ * donut da tela de Estatísticas. */
+export async function getByDispositivoGlobal(periodo: Periodo): Promise<DispositivoPonto[]> {
+  const response = await fetch(`${API_URL}/stats/por-dispositivo?periodo=${periodo}`);
+  if (!response.ok) {
+    throw new ApiError('Não foi possível carregar a distribuição por dispositivo.');
+  }
+  return (await response.json()) as DispositivoPonto[];
+}

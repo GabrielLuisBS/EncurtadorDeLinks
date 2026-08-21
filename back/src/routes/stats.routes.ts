@@ -37,6 +37,24 @@ export async function statsRoutes(app: FastifyInstance) {
     return statsService.getResumo();
   });
 
+  app.get("/stats/series", async (request, reply) => {
+    try {
+      const range = parsePeriod(request.query as Record<string, unknown>);
+      return await statsService.getSeriesGlobal(range);
+    } catch (error) {
+      return handleError(error, reply);
+    }
+  });
+
+  app.get("/stats/por-dispositivo", async (request, reply) => {
+    try {
+      const range = parsePeriod(request.query as Record<string, unknown>);
+      return await statsService.getByDispositivoGlobal(range);
+    } catch (error) {
+      return handleError(error, reply);
+    }
+  });
+
   app.get<{ Params: StatsParams }>("/links/:slug/stats", async (request, reply) => {
     try {
       const range = parsePeriod(request.query as Record<string, unknown>);

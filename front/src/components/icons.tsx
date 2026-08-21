@@ -61,6 +61,81 @@ export function ClickIcon({ size = 20, strokeWidth = 1.8, className }: IconProps
   );
 }
 
+export function TrendingUpIcon({ size = 16, strokeWidth = 1.8, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 16l5-5 4 4 7-8" />
+      <path d="M15 7h5v5" />
+    </svg>
+  );
+}
+
+export function CalendarIcon({ size = 15, strokeWidth = 1.8, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="4" y="5" width="16" height="15" rx="2.5" />
+      <path d="M4 10h16M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
+export function PieChartIcon({ size = 16, strokeWidth = 1.8, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 12V3.5A8.5 8.5 0 1120.5 12H12z" />
+      <path d="M12 12l6 6" />
+    </svg>
+  );
+}
+
+export function ChevronDownIcon({ size = 14, strokeWidth = 2, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M6 9.5l6 6 6-6" />
+    </svg>
+  );
+}
+
 export function CopyIcon({ size = 15, strokeWidth = 1.8 }: IconProps) {
   return (
     <svg

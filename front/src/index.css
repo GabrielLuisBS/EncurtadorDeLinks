@@ -10,6 +10,8 @@
   --accent-hover: oklch(49% 0.19 288);
   --accent-soft: oklch(94% 0.035 288);
   --on-accent: oklch(99% 0.005 288);
+  --chart-2: oklch(74% 0.1 288);
+  --chart-3: oklch(38% 0.14 288);
   --shadow-sm: 0 1px 2px oklch(20% 0.02 270 / 5%);
   --shadow-md:
     0 16px 36px oklch(20% 0.02 270 / 8%), 0 2px 8px oklch(20% 0.02 270 / 5%);

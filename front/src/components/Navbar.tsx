@@ -1,4 +1,9 @@
+import { NavLink } from 'react-router-dom';
 import { LinkIcon } from './icons';
+
+function navLinkClass({ isActive }: { isActive: boolean }): string {
+  return isActive ? 'nav-link active' : 'nav-link';
+}
 
 export default function Navbar() {
   return (
@@ -9,11 +14,14 @@ export default function Navbar() {
         </div>
         <div className="logo-text">Linkly</div>
       </div>
-      {/* Sem href ainda: Estatísticas (fase 8) e Sobre não têm página, e
-          nenhum roteador foi introduzido neste passo — só a navbar visual. */}
       <div className="nav-links">
-        <a className="nav-link active">Início</a>
-        <a className="nav-link">Estatísticas</a>
+        <NavLink to="/" end className={navLinkClass}>
+          Início
+        </NavLink>
+        <NavLink to="/estatisticas" className={navLinkClass}>
+          Estatísticas
+        </NavLink>
+        {/* "Sobre" não tem página no roteiro — sem href de propósito. */}
         <a className="nav-link">Sobre</a>
       </div>
       <button type="button" className="btn-ghost">

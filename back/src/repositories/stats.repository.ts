@@ -36,6 +36,37 @@ export const statsRepository = {
     });
   },
 
+  /**
+   * Mesma série, mas somada entre todos os links — pro gráfico de linha
+   * global da Tela - Estatísticas (a página não é de um link específico).
+   * Sem privacidade em jogo: é uma soma agregada por dia, não expõe qual
+   * link é qual (ao contrário do ranking "links mais acessados", adiado
+   * pra fase 11 — ver Roteiro de Execução).
+   */
+  getSeriesGlobal(range: PeriodRange) {
+    return prisma.cliqueDia.groupBy({
+      by: ["dia"],
+      where: { dia: { gte: range.start, lt: range.end } },
+      _sum: { total: true },
+      orderBy: { dia: "asc" },
+    });
+  },
+
+  /**
+   * Mesmo agrupamento, sem linkId — pro donut de dispositivo da Tela -
+   * Estatísticas (não é a página de um link específico). Só 4 categorias
+   * possíveis (mobile/desktop/tablet/outro), então sem paginação — ao
+   * contrário da versão por link, aqui não faria sentido.
+   */
+  getByDispositivoGlobal(range: PeriodRange) {
+    return prisma.cliqueDiaPorOrigem.groupBy({
+      by: ["dispositivo"],
+      where: { dia: { gte: range.start, lt: range.end } },
+      _sum: { total: true },
+      orderBy: { dispositivo: "asc" },
+    });
+  },
+
   getByDispositivo(linkId: string, range: PeriodRange, pais: string | undefined, page: Pagination) {
     return prisma.cliqueDiaPorOrigem.groupBy({
       by: ["dispositivo"],

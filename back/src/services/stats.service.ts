@@ -52,6 +52,20 @@ export const statsService = {
     return resumo;
   },
 
+  /** Série global pro gráfico de linha da Tela - Estatísticas — soma entre
+   * todos os links, sem expor qual link é qual (ver getSeriesGlobal). */
+  async getSeriesGlobal(range: PeriodRange) {
+    const rows = await statsRepository.getSeriesGlobal(range);
+    return rows.map((r) => ({ dia: r.dia, total: r._sum.total ?? 0 }));
+  },
+
+  /** Distribuição por dispositivo global pro donut da Tela - Estatísticas
+   * — soma entre todos os links (ver getByDispositivoGlobal). */
+  async getByDispositivoGlobal(range: PeriodRange) {
+    const rows = await statsRepository.getByDispositivoGlobal(range);
+    return rows.map((r) => ({ dispositivo: r.dispositivo, total: r._sum.total ?? 0 }));
+  },
+
   async getSummary(slug: string, range: PeriodRange) {
     const link = await requireLink(slug);
     const [allTime, noPeriodo] = await Promise.all([
